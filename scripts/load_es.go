@@ -8,11 +8,10 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/elastic/go-elasticsearch"
 )
 
-const esHost = "127.0.0.1:9200"
+const esHost = "localhost:9200"
+const indexName = "games"
 const timeoutSeconds = 2 * 60
 
 func main() {
@@ -28,7 +27,7 @@ func main() {
 			data, _ := ioutil.ReadAll(res.Body)
 			stringSlice := strings.Split(string(data), " ")
 			// contains() is a little safer than a regex check
-			if contains(stringSlice, "green") {
+			if contains(stringSlice, "green") || contains(stringSlice, "yellow") {
 				fmt.Println("ES ready for indexing!")
 				break
 			}
@@ -39,32 +38,32 @@ func main() {
 	}
 
 	if timeoutReached {
-		fmt.Println("Timeout reached waiting for ES to be ready for requests")
-		os.Exit(1)
+		log.Fatalf("Timeout reached waiting for ES to be ready for requests")
 	}
 
 	// Apply mappings
-	es, err := elasticsearch.NewDefaultClient()
+	// Use the http client to create the index because the es client was throwing errors.
+	workingDir, _ := os.Getwd()
+	jsonFile, err := os.Open(workingDir + "/data/games-mappings.json")
 	if err != nil {
-		log.Fatalf("Error creating the client: %s", err)
+		log.Fatalf("Error reading mappings: %s", err)
 	}
 
-	res, err := es.Info()
-	if err != nil {
-		log.Fatalf("Error getting response: %s", err)
-	}
-	data, _ := ioutil.ReadAll(res.Body)
-	fmt.Println(string(data))
-	// // Create a new index.
-	// createIndex, err := client.CreateIndex("twitter").BodyString(mapping).Do(ctx)
-	// if err != nil {
-	// 	// Handle error
-	// 	panic(err)
-	// }
-	// if !createIndex.Acknowledged {
-	// 	// Not acknowledged
-	// }
+	defer jsonFile.Close()
 
+	client := &http.Client{}
+	esPutURL := fmt.Sprintf("http://%s/%s", esHost, indexName)
+	req, err := http.NewRequest(http.MethodPut, esPutURL, jsonFile)
+	req.Header.Set("content-type", "application/json; charset=UTF-8")
+	if err != nil {
+		log.Fatalf("Error building request: %s", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Error putting request: %s", err)
+	}
+	str, _ := ioutil.ReadAll(resp.Body)
+	log.Println(string(str))
 	// Add data
 }
 
