@@ -3,24 +3,29 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/elastic/go-elasticsearch"
 )
 
 const esHost = "127.0.0.1:9200"
 const timeoutSeconds = 2 * 60
 
 func main() {
+	// Wait for cluster to be ready
 	startTime := time.Now().Unix()
+	timeoutReached := false
 
-	for (time.Now().Unix() - startTime) < timeoutSeconds {
-		fmt.Println(startTime)
-		resp, err := http.Get(fmt.Sprintf("http://%s/_cat/health", esHost))
+	for !timeoutReached {
+		res, err := http.Get(fmt.Sprintf("http://%s/_cat/health", esHost))
 		if err != nil {
 			fmt.Printf("The HTTP request failed with error %s\n", err)
 		} else {
-			data, _ := ioutil.ReadAll(resp.Body)
+			data, _ := ioutil.ReadAll(res.Body)
 			stringSlice := strings.Split(string(data), " ")
 			// contains() is a little safer than a regex check
 			if contains(stringSlice, "green") {
@@ -30,7 +35,37 @@ func main() {
 		}
 		fmt.Println("Waiting for Elasticsearch to be ready for requests...")
 		time.Sleep(5 * time.Second)
+		timeoutReached = (time.Now().Unix() - startTime) > timeoutSeconds
 	}
+
+	if timeoutReached {
+		fmt.Println("Timeout reached waiting for ES to be ready for requests")
+		os.Exit(1)
+	}
+
+	// Apply mappings
+	es, err := elasticsearch.NewDefaultClient()
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	res, err := es.Info()
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+	}
+	data, _ := ioutil.ReadAll(res.Body)
+	fmt.Println(string(data))
+	// // Create a new index.
+	// createIndex, err := client.CreateIndex("twitter").BodyString(mapping).Do(ctx)
+	// if err != nil {
+	// 	// Handle error
+	// 	panic(err)
+	// }
+	// if !createIndex.Acknowledged {
+	// 	// Not acknowledged
+	// }
+
+	// Add data
 }
 
 func contains(slice []string, value string) bool {
@@ -41,22 +76,3 @@ func contains(slice []string, value string) bool {
 	}
 	return false
 }
-
-// start_time_seconds = time.time()
-// timeout = False
-
-// while not timeout:
-//     resp = requests.get(f"http://{ES_HOST}:{ES_PORT}/_cat/health")
-//     if resp.status_code == 200:
-//         if "green" in resp.content.decode():
-//             print("Elasticsearch is ready for indexing.")
-//             break
-//     timeout = (time.time() - start_time_seconds) < TIMEOUT_SECONDS
-
-// if timeout:
-//     print("ERROR: Timout reached waiting for ES to be ready for indexing. Check cluster health.")
-//     sys.exit(1)
-
-// # Apply mappings
-
-// # Add data
