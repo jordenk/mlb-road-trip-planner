@@ -1,0 +1,23 @@
+{
+    "mappings": {
+      "_doc": {
+        "properties": {
+          "home_team": {
+            "type": "text"
+          },
+          "away_team": {
+            "type": "text"
+          },
+          "game_date_millis": {
+            "type": "long"
+          },
+          "full_team_name": {
+            "type": "text"
+          },
+          "stadium_location": {
+            "type": "geo_point"
+          }
+        }
+      }
+    }
+  }
