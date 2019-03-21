@@ -1,3 +1,5 @@
+# This could be migrated to go. I wrote this when I was implementing the service with Java.
+
 import json
 import requests
 from bs4 import BeautifulSoup
