@@ -68,7 +68,7 @@ func main() {
 	respBodyStr, _ := ioutil.ReadAll(resp.Body)
 	log.Printf("Successfully created ES index. ES response:\n%s", respBodyStr)
 
-	// Bulk index data into Elasticsearch
+	// Load game data
 	gameDataFile, err := os.Open(workingDir + "/data/mlb-games.jsonl")
 	if err != nil {
 		log.Fatalf("Error reading data file: %s", err)
@@ -84,8 +84,9 @@ func main() {
 	bulkMeta := []byte(`{ "index" : { "_index" : "games", "_type" : "_doc"} }`)
 	esBulkURL := fmt.Sprintf("http://%s/_bulk", esHost)
 
+	// Bulk index data into Elasticsearch
 	for fileScanner.Scan() {
-		// POST _bulk
+		// Bulk loads require each record to have a json line with the action.
 		byteSlice = append(byteSlice, bulkMeta...)
 		byteSlice = append(byteSlice, []byte("\n")...)
 		byteSlice = append(byteSlice, fileScanner.Bytes()...)
