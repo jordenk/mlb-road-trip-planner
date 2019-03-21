@@ -1,3 +1,2 @@
 package: github.com/jordenk/mlb-road-trip-planner
 import:
-# - package: github.com/elastic/go-elasticsearch
